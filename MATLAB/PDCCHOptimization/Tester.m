@@ -1,0 +1,3 @@
+PDCCHSPEEDTESTOPTMin(0, 1)
+%0.004 0.001
+%      0.001
