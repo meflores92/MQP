@@ -36,12 +36,14 @@
 //USRP Parameters
 double freq = center_freq;
 double rate = 46.08e6;
-double rx_gain = 36.00;
+double rx_gain = 50.00;
 double tx_gain = 89.750;
 double bandwidth = 40.00e6; // Default for B210 == 56.00Mhz
 double bandwidth_out;
-char *device_args = "serial=31EEB51, num_recv_frames = 256, recv_frame_size = 7680, num_send_frames = 256, send_frame_size = 7680"; // originally 7680
+char *device_args = "num_recv_frames = 256, recv_frame_size = 7680, num_send_frames = 256, send_frame_size = 7680"; // originally 7680
 size_t channel = 0;
+char *clk_string = "external";
+char *time_string = "external";
 
 //USRP
 uhd_usrp_handle usrp;
@@ -132,9 +134,7 @@ void create_args(){
 void init_usrp_rx(){
 	char mboard_name[512];
 	size_t num_mboards_out;
-	char *clk_string = "external";
 	char time_source_out[512];
-	char *time_string = "external";
 	char clock_source_out[512];
 
 	// Check Number of Motherboards
@@ -278,7 +278,7 @@ void *stream_rx_thread(){
 
 
 	// Streaming Loop
-	while (done == FALSE){
+	while (done == 1){
 		size_t num_rx_samps = 0;
 
 		//  Recv Packet
@@ -290,7 +290,7 @@ void *stream_rx_thread(){
 		//Handle error Condition
 		if(error_code != UHD_RX_METADATA_ERROR_CODE_NONE){
 			if(error_code == UHD_RX_METADATA_ERROR_CODE_OVERFLOW){
-				printf("Overflow!\n");
+				// printf("Overflow!\n");
 				overflows++;
 			}
 			else{
@@ -463,7 +463,7 @@ void *stream_tx_thread(){
 				if (num_acc_samps == (NUM_TX_SAMPS - 1916)){
 					uhd_tx_metadata_make(&tx_md, false, 0, 0.1, false, true);
 				}
-				else if (num_acc_samps != 0){
+				else if (num_acc_samps == 0){
 					uhd_tx_metadata_make(&tx_md, false, 0, 0.1, false, false);
 				}
 
@@ -497,7 +497,7 @@ int terminate(){
 	double frac_secs;
  
 	//Stop all USRP streaming
-	fprintf(stderr, "Issuing stop stream command.\n");
+	fprintf(stderr, "\nIssuing stop stream command.\n");
 	uhd_rx_streamer_issue_stream_cmd(rx_streamer, &stream_cmd_term);
 
 	// Display Run Time
@@ -533,5 +533,44 @@ int terminate(){
 
 	fprintf(stderr, (return_code ? "Failure\n" : "Success\n"));
 	return return_code;
+}
+/*=====================================================================================*/
+
+/*=========================== USRP Values from Command Line  ==========================*/
+void updateArgs(int argc, char* argv[]){
+	for (int i=1; i<argc; i+=2){
+		 if(strcmp(argv[i],"--freq") == 0){
+			 freq = atof(argv[i+1]);
+		 }
+		 else if(strcmp(argv[i],"--tx_gain") == 0){
+			 tx_gain = atof(argv[i+1]);
+		 }
+		 else if(strcmp(argv[i],"--rx_gain") == 0){
+			 rx_gain = atof(argv[i+1]);
+		 }
+		 else if(strcmp(argv[i],"--rate") == 0){
+			 rate = atof(argv[i+1]);
+		 }
+		 else if(strcmp(argv[i],"--clk_source") == 0){
+			 if((int) atof(argv[i+1]) == 0){
+				clk_string = "internal";
+			 }
+			 else if((int) atof(argv[i+1]) == 1){
+				clk_string = "external";
+			 }
+		 }
+		 else if(strcmp(argv[i],"--time_source") == 0){
+			 if((int) atof(argv[i+1]) == 0){
+				time_string = "internal";
+			 }
+			 else if((int) atof(argv[i+1]) == 1){
+				time_string = "external";
+			 }
+		 }
+		 else{
+			 return_code = EXIT_FAILURE;
+		 }
+
+	}
 }
 /*=====================================================================================*/
