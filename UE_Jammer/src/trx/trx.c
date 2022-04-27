@@ -278,7 +278,7 @@ void *stream_rx_thread(){
 
 
 	// Streaming Loop
-	while (done == 1){
+	while (done != 0){
 		size_t num_rx_samps = 0;
 
 		//  Recv Packet
