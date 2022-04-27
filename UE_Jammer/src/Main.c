@@ -13,8 +13,8 @@
 //GUI Parameters
 #define SNR_REFREASH_RATE 50 //RATE*2 == number of 5G frames
 #define QPSK_PLOT_REFREASH_RATE 2 //RATE*2 == number of 5G frames
-#define QPSK_PLOT_UPPER_BOUND 30
-#define QPSK_PLOT_LOWER_BOUND -30
+#define QPSK_PLOT_UPPER_BOUND 60
+#define QPSK_PLOT_LOWER_BOUND -60
 /*=====================================================================================*/
 
 
@@ -103,9 +103,10 @@ struct ue* ueList = NULL;
 
 
 /*================================= Program main ======================================*/
-int main(void){
+int main(int argc, char* argv[]){
 
 	initRealTime();
+	updateArgs(argc, argv);
 	create_args();
 	init_usrp_rx();
 	init_usrp_tx();
@@ -297,19 +298,16 @@ void* sync_thread(){
     int status= 0; //Current sync status
     int frames = 0;
     float SNR;
-	float SNR_avg[100];
-	int index = 0;
 	char SNRString[30];
 	char PDCCHLabel[50];
 
 	//Temp Buffers
 	creal32_T syncWave[6584];
-	creal32_T recoverWave[FRAME_BUFF_SIZE/2];
 	creal32_T initWave[FRAME_BUFF_SIZE];
 
 	//Indexing variables
 	int x;
-	int new_offset;
+	int new_offset = 0;
 
 
 	//Wait until a whole frame has been received then find the initial offset
@@ -335,17 +333,14 @@ void* sync_thread(){
 				offset += new_offset;
 			}else{
 				for(x=0;x<FRAME_BUFF_SIZE;x++){
-					//recoverWave[x] = rxWaveform[(offset+x+FRAME_BUFF_SIZE-230400)%FRAME_BUFF_SIZE];
 					initWave[x] = rxWaveform[x];
 				}
-				//new_offset = SyncFrameRecover(recoverWave) - 230400;
-				offset= SyncFrameInit(initWave);
-				//offset += new_offset;
+				offset = SyncFrameInit(initWave);
 				syncronized = 3;
 			}
 
 			//Update GUI Sync Status
-			if(abs(new_offset)> OUT_OF_SYNC && status == 1){
+			if(abs(new_offset) > OUT_OF_SYNC && status == 1){
 				gtk_widget_modify_bg(syncStatusLamp, GTK_STATE_NORMAL, &red);
 				status = 0;
 				get_sync = 3;
@@ -369,20 +364,12 @@ void* sync_thread(){
 				if(frames > SNR_REFREASH_RATE){
 					frames = 0;
 					SNR = getSNR(syncWave);
-					SNR_avg[index%100] = SNR;
-					index++;
 					sprintf(SNRString, "Estimated SNR: %.2fdB", SNR);
 					gtk_label_set_text(GTK_LABEL(SNRLabel), SNRString);
 				}
 			}
 		}
 	}
-	float total = 0;
-		
-	for(index = 0; index < 100; index++){
-		total += SNR_avg[index];
-	}
-	printf("SNR: %f", total/100);
 	return NULL;
 }
 
